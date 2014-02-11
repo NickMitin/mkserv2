@@ -1,0 +1,36 @@
+#!/bin/bash
+
+HOME_DIRECTORY="/home/projects/"
+
+PROJECT_NAME=$1
+CLONE_REPOSITORY=$2
+REPOSITORY_TYPE=$3
+REPOSITORY=$4
+PROJECT_PASSWORD=`pwgen -s -1`
+PROJECT_PASSWORD_HASH=`mkpasswd $PROJECT_PASSWORD`
+
+QUERY="CREATE DATABASE \`$1\`; USE $1; GRANT ALL ON \`$1\`.* TO '$1'@'localhost' IDENTIFIED BY '$PROJECT_PASSWORD';"
+
+mysql -sse "$QUERY"
+
+if [ "$CLONE_REPOSITORY" = 1 ]; then
+  
+#  mkdir "$HOME_DIRECTORY$1"
+  `$REPOSITORY_TYPE clone "$REPOSITORY" "$HOME_DIRECTORY$1"`;
+  
+fi
+
+id $PROJECT_NAME 2>/dev/null
+if [ $? -ne 0 ]; then
+  useradd -m -d "$HOME_DIRECTORY$1" -p "$PROJECT_PASSWORD_HASH" -s /bin/bash "$1"
+else
+  echo "project already exists"
+fi
+
+mkdir "$HOME_DIRECTORY$1/logs/"
+mkdir "$HOME_DIRECTORY$1/www/"
+mkdir "$HOME_DIRECTORY$1/conf/"
+chown -vfR $1:$1 "$HOME_DIRECTORY$1"
+
+echo "user: $PROJECT_NAME"
+echo "pass: $PROJECT_PASSWORD"

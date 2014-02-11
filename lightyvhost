@@ -1,0 +1,82 @@
+#!/usr/bin/php
+
+<?php
+
+  $userName = $argv[1];
+  $domainRegExp = $argv[2];
+  $httpAuth = intval($argv[3]);
+
+  $httpAuthText = '
+	auth.debug = 0
+	auth.backend = "plain"
+	auth.backend.plain.userfile = "/home/projects/%%userName%%/conf/passwd.conf"
+        auth.require = ( "/" =>
+        (
+                "method" => "basic",
+                "realm" => "Password protected area",
+                "require" => "user=%%userName%%"
+        )
+        )
+  ';
+
+  
+
+  if ($userName != '' && $domainRegExp != '')
+  {
+
+    #$skeleton = file_get_contents('/etc/lighttpd/virt/skeleton.conf');
+    $skeleton = '$HTTP["host"] =~ "%%domainRegExp%%" {
+        username             = "%%userName%%"
+        nproc                = "4"
+
+        %%httpAuth%%
+
+        server.document-root = "/home/projects/%%userName%%/www/"
+        accesslog.filename   = "/home/projects/%%userName%%/logs/access_log"
+
+        include "phpmyadmin.conf"
+        include "php5.conf"
+
+        server.error-handler-404 = "/generator.php"
+}';
+
+    if ($httpAuth == 1)
+    {
+      $httpAuthText = str_replace('%%userName%%', $userName, $httpAuthText);
+      file_put_contents('/home/projects/' . $userName . '/conf/passwd.conf', $userName . ':' . preg_replace('/[aeiou]/i', '', $userName) . '1');
+    }
+    else
+    {
+      $httpAuthText = '';
+    }
+
+    $skeleton = str_replace(array('%%userName%%', '%%domainRegExp%%', '%%httpAuth%%'), array($userName, $domainRegExp, $httpAuthText), $skeleton);
+
+    file_put_contents('/etc/lighttpd/virt/' . $userName . '.conf', $skeleton);
+    $vhosts = file_get_contents('/etc/lighttpd/virt.conf');
+    $vhosts = preg_split('/\s*\r?\n\s*/ism', $vhosts, -1, PREG_SPLIT_NO_EMPTY);
+    if (!in_array('include "virt/' . $userName . '.conf"', $vhosts))
+    {
+      $vhosts[] = 'include "virt/' . $userName . '.conf"';
+    } 
+    sort($vhosts);
+    $vhosts = implode("\n", $vhosts);
+    file_put_contents('/etc/lighttpd/virt.conf', $vhosts);
+
+
+    $phpFpmSkeleton = file_get_contents('/etc/php5/fpm/pool.d/www.conf.skeleton');
+    $phpFpmSkeleton = str_replace('%%userName%%', $userName, $phpFpmSkeleton);
+    file_put_contents('/etc/php5/fpm/pool.d/' . $userName . '.conf', $phpFpmSkeleton);
+#    $spawn = file_get_contents('/etc/init.d/spawn-fcgi');
+#    if (preg_match('/FCGI_USER_LIST="(.+?)"/', $spawn, $matches))
+#    {
+#      $workers = preg_split('/\s+/ism', $matches[1], -1, PREG_SPLIT_NO_EMPTY);
+#      if (!in_array($userName, $workers))
+#      {
+#        $workers[] = $userName;
+#      }
+#      $spawn = preg_replace('/FCGI_USER_LIST="(.+?)"/', 'FCGI_USER_LIST="' . implode(' ', $workers) . '"', $spawn);
+#      file_put_contents('/etc/init.d/spawn-fcgi', $spawn);
+#    }
+  }  
+?>

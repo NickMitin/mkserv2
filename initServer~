@@ -1,0 +1,11 @@
+#!/bin/bash
+
+apt-get install joe lighttpd php5-fpm php5-cli php5-xcache php5-curl php5-mysql mysql-server mysql-client phpmyadmin pwgen whois
+
+mkdir -p /etc/lighttpd/virt/
+mkdir -p /var/run/php-fpm/
+mkdir -p /home/projects/
+
+cp www.conf.skeleton /etc/php5/fpm/pool.d/
+cp MKSERV2 addproject lightyvhost /usr/bin/
+cp lighttpd.conf php5.conf phpmyadmin.conf /etc/lighttpd/ 
